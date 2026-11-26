@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, Float, ForeignKey, Integer, JSON, String, Table
+from sqlalchemy import Column, Float, ForeignKey, Integer, JSON, String, Table
 
 from core.db import metadata
 
@@ -10,4 +10,6 @@ color_profiles = Table('color_profiles', metadata,
     Column('dominant', Integer, nullable=False),
     Column('error_value', Float, nullable=False),
     Column('token', String(64), nullable=False, unique=True),
+    # 签条权重所依据的统一基准；种子等历史签条可能为空，按在用基准补换算。
+    Column('baseline', String(64), ForeignKey('nmf_baselines.code'), nullable=True),
 )

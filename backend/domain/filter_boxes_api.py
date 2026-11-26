@@ -6,7 +6,7 @@ from core.db import transaction
 from core.records import scan
 from domain import filter_boxes_service as service
 from domain.filter_boxes_model import filter_boxes
-from domain.filter_boxes_schemas import StoreProfile, PullProfile
+from domain.filter_boxes_schemas import FindSimilar, StoreProfile, PullProfile
 
 router = APIRouter()
 
@@ -14,6 +14,13 @@ router = APIRouter()
 def list_filter_boxes(user=Depends(actor)):
     with transaction() as conn:
         return scan(conn, filter_boxes)
+
+
+@router.post('/filter_boxes/find-similar')
+def find_similar(data: FindSimilar, user=Depends(actor)):
+    allow(user, ('operator', 'reviewer', 'viewer'))
+    with transaction() as conn:
+        return service.find_similar(conn, user, data)
 
 
 @router.post('/filter_boxes/store-profile')

@@ -1,13 +1,15 @@
 from domain.gel_reels_model import gel_reels
 from domain.gel_curves_model import gel_curves
+from domain.nmf_baselines_model import nmf_baselines
 from domain.color_profiles_model import color_profiles
 from domain.filter_boxes_model import filter_boxes
+from domain.learning import fit_baseline, project_curve
 
-FIXTURES = [
-    (gel_reels, [{'code': 'REEL-H', 'family': '耐热树脂', 'aged': True, 'eligible': True},
+_reel_rows = [{'code': 'REEL-H', 'family': '耐热树脂', 'aged': True, 'eligible': True},
  {'code': 'REEL-F', 'family': '耐热树脂', 'aged': False, 'eligible': True},
- {'code': 'REEL-J', 'family': '覆膜', 'aged': False, 'eligible': False}]),
-    (gel_curves, [{'code': 'SP-00',
+ {'code': 'REEL-J', 'family': '覆膜', 'aged': False, 'eligible': False}]
+
+_curve_rows = [{'code': 'SP-00',
   'reel': 'REEL-H',
   'bands': [0.08, 0.27, 0.68, 0.78],
   'rechecked': True},
@@ -93,13 +95,39 @@ FIXTURES = [
  {'code': 'SP-23',
   'reel': 'REEL-F',
   'bands': [0.851, 0.531, 0.281, 0.171],
-  'rechecked': True}]),
-    (color_profiles, [{'code': 'NMF-0',
-  'curve': 'SP-03',
-  'weights': [0.2, 0.6],
-  'dominant': 2,
-  'error_value': 0.04,
-  'token': 'fixture'}]),
-    (filter_boxes, [{'code': 'BOX-F', 'kind': '耐热树脂', 'aged': False, 'space': 4, 'contents': ['NMF-0']},
- {'code': 'BOX-H', 'kind': '耐热树脂', 'aged': True, 'space': 2, 'contents': []}]),
+  'rechecked': True}]
+
+
+def _seed_baseline():
+    """用全部复测曲线拟合初始在用基准，使所有签条与找片共用同一套基准。"""
+    fit = fit_baseline({'history': [row['bands'] for row in _curve_rows]})
+    return {'code': 'NMF-BASE-01', 'components': fit['components'],
+            'references': fit['references'], 'status': 'active',
+            'token': 'fixture-baseline', 'mean_error': fit['mean_error']}
+
+
+_baseline_rows = [_seed_baseline()]
+
+
+def _seed_profile():
+    # 让历史签条 NMF-0 的权重与在用基准自洽：把来源曲线 SP-03 投影到该基准。
+    baseline = _baseline_rows[0]
+    bands = next(row['bands'] for row in _curve_rows if row['code'] == 'SP-03')
+    metrics = project_curve({'components': baseline['components'], 'bands': bands})
+    return {'code': 'NMF-0', 'curve': 'SP-03', 'weights': metrics['coefficients'],
+            'dominant': metrics['dominant'], 'error_value': metrics['mean_error'],
+            'token': 'fixture', 'baseline': baseline['code']}
+
+
+_profile_rows = [_seed_profile()]
+
+_box_rows = [{'code': 'BOX-F', 'kind': '耐热树脂', 'aged': False, 'space': 4, 'contents': ['NMF-0']},
+ {'code': 'BOX-H', 'kind': '耐热树脂', 'aged': True, 'space': 2, 'contents': []}]
+
+FIXTURES = [
+    (gel_reels, _reel_rows),
+    (gel_curves, _curve_rows),
+    (nmf_baselines, _baseline_rows),
+    (color_profiles, _profile_rows),
+    (filter_boxes, _box_rows),
 ]
